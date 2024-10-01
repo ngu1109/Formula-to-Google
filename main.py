@@ -36,14 +36,14 @@ def preprocess_equation_text(equation_text):
     """
     Preprocesses the equation text by:
     - Removing \text{...} and replacing with the content inside.
-    - Removing \left and \right commands.
+    - Removing \left, \right, and \, commands.
     - Replacing \mathcal{E} with \varepsilon.
     """
     # Replace \mathcal{E} with \varepsilon
     equation_text = equation_text.replace('\\mathcal{E}', '\\varepsilon')
 
-    # Remove \left and \right commands
-    equation_text = equation_text.replace('\\left', '').replace('\\right', '')
+    # Remove \left, \right, and \, commands
+    equation_text = equation_text.replace('\\left', '').replace('\\right', '').replace('\\,', '')
 
     # Remove \text{...} and replace with the content inside
     equation_text = re.sub(r'\\text\{([^}]*)\}', r'\1', equation_text)
@@ -118,7 +118,10 @@ def process_equation(equation_text):
             i += 1
             subscript, i = extract_braces_or_char(equation_text, i)
             if subscript is not None:
+                # Start subscript processing
+                pyautogui.press('(')  # Start grouping for subscript
                 process_equation(subscript)
+                pyautogui.press(')')  # End grouping for subscript
             # Press right arrow to exit subscript
             pyautogui.press('right')
         # Handle superscripts '^'
@@ -127,10 +130,23 @@ def process_equation(equation_text):
             i += 1
             superscript, i = extract_braces_or_char(equation_text, i)
             if superscript is not None:
+                # Start superscript processing
+                pyautogui.press('(')  # Start grouping for superscript
                 process_equation(superscript)
+                pyautogui.press(')')  # End grouping for superscript
             # Press right arrow to exit superscript
             pyautogui.press('right')
-        # Handle Greek letters and other LaTeX commands starting with '\'
+        # Handle \sum specifically
+        elif equation_text.startswith('\\sum', i):
+            # Type \sum and press space
+            pyautogui.write('\\sum')
+            pyautogui.press('space')
+            i += 4  # Skip past '\sum'
+
+            # Press right arrow twice to exit subscript and superscript positions
+            pyautogui.press('right')
+            pyautogui.press('right')
+        # Handle other LaTeX commands starting with '\'
         elif char == '\\':
             cmd_match = re.match(r'\\[a-zA-Z]+', equation_text[i:])
             if cmd_match:
@@ -139,8 +155,7 @@ def process_equation(equation_text):
                 pyautogui.press('space')  # Add space after LaTeX command
                 i += len(cmd)
             else:
-                # Just a backslash, type it
-                pyautogui.write(char)
+                # Just a backslash, skip it
                 i += 1
         else:
             # Regular character
@@ -189,6 +204,10 @@ def type_equation(equation_text):
     if stop_script.is_set():
         return
 
+    # Ensure we are not inside an equation already
+    # Press Esc to exit any existing equation editor
+    pyautogui.press('esc')
+
     # Open the equation editor using the menu: Alt + I, then E
     pyautogui.hotkey('alt', 'i')
     pyautogui.press('e')
@@ -199,8 +218,11 @@ def type_equation(equation_text):
     # Process and type the equation
     process_equation(equation_text)
 
-    # Press right arrow key to exit equation box
+    # Press right arrow key to ensure we exit any subscript/superscript
     pyautogui.press('right')
+
+    # Press Esc to exit the equation editor
+    pyautogui.press('esc')
 
 def type_text(text):
     """
